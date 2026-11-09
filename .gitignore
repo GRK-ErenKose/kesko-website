@@ -15,6 +15,14 @@ App_Data/
 appsettings.Local.json
 appsettings.*.local.json
 
+# Sunucu yayin bilgileri: kullanici adi ve sunucu adresi icerir.
+*.publishsettings
+*.pubxml
+*.pubxml.user
+PublishProfiles/
+yayin/
+publish/
+
 # --- Isletim sistemi ---
 Thumbs.db
 desktop.ini

@@ -11,4 +11,28 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.14" />
   </ItemGroup>
 
+  <!--
+    Gelistirmede kurumsal site bir ust klasorden sunulur (SitePath=".."),
+    dosyalar kopyalanmaz. Yayinda ise ust klasor sunucuda bulunmadigi icin
+    index.html ve assets/ yayin cikisindaki wwwroot altina kopyalanir.
+    Boylece tek site hem yerelde tek kaynaktan hem yayinda kendi basina
+    calisir. appsettings.Production.json icinde SitePath bos birakilmistir.
+  -->
+  <Target Name="KurumsalSiteyiKopyala" AfterTargets="Publish">
+    <ItemGroup>
+      <SiteKok Include="$(MSBuildProjectDirectory)\..\index.html" />
+      <SiteVarlik Include="$(MSBuildProjectDirectory)\..\assets\**\*" />
+    </ItemGroup>
+
+    <Error Condition="'@(SiteKok)' == ''"
+           Text="index.html bir ust klasorde bulunamadi. Yayin, kurumsal site olmadan tamamlanmaz." />
+
+    <Copy SourceFiles="@(SiteKok)" DestinationFolder="$(PublishDir)wwwroot" />
+    <Copy SourceFiles="@(SiteVarlik)"
+          DestinationFiles="@(SiteVarlik->'$(PublishDir)wwwroot\assets\%(RecursiveDir)%(Filename)%(Extension)')" />
+
+    <Message Importance="high"
+             Text="Kurumsal site yayin cikisina kopyalandi: index.html + @(SiteVarlik->Count()) varlik" />
+  </Target>
+
 </Project>

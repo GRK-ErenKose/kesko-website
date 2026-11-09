@@ -131,7 +131,10 @@ app.Use(async (ctx, next) =>
     await next();
 });
 
-// Panel varliklari wwwroot altinda.
+// Panel varliklari wwwroot altinda. Yayinda kurumsal site de buraya
+// kopyalanir (bkz. csproj icindeki KurumsalSiteyiKopyala hedefi), bu
+// yuzden "/" istegi once wwwroot/index.html ile karsilanir.
+app.UseDefaultFiles();
 app.UseStaticFiles(new StaticFileOptions
 {
     OnPrepareResponse = ctx =>
