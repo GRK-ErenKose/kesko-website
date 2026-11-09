@@ -157,16 +157,40 @@ varsayılanlarla devam eder — yani site sunucusuz da çalışmaya devam eder.
 
 ## Yayına alma
 
-```bash
-dotnet publish -c Release -o yayin
+Depo kökündeki betiği kullanın:
+
+```powershell
+.\yayinla.ps1            # şifreyi sorar
+.\yayinla.ps1 -Prova     # hiçbir şeyi değiştirmez, ne olacağını listeler
 ```
 
-Siteyi de aynı sunucudan vermek için `index.html` ve `assets/` klasörünü
-yayın klasörünün yanına koyup `SitePath` değerini oraya çevirin, ya da
-`SitePath` değerini boş bırakıp dosyaları `wwwroot` altına kopyalayın.
+Betik sırayla: yayın profilini okur, `dotnet publish` çalıştırır, paketin
+eksiksiz olduğunu doğrular, sunucuya gönderir ve canlıyı kontrol eder.
+Kurumsal site `wwwroot` altına otomatik kopyalanır (bkz. csproj içindeki
+`KurumsalSiteyiKopyala` hedefi).
+
+> ### ⚠️ Elle `msdeploy` çalıştırmayın
+>
+> `msdeploy -verb:sync`, **kaynakta bulunmayan dosyaları hedeften siler.**
+> `App_Data` yayın paketinde yer almadığı için düz bir sync sunucudaki
+> şu dosyaları yok eder:
+>
+> - `App_Data/kesko.db` → bütün talepler, notlar, SMTP ve site ayarları
+> - `App_Data/keys/*.xml` → DataProtection anahtarları; silinince açık
+>   oturumlar düşer ve kayıtlı SMTP şifresi bir daha çözülemez
+>
+> `yayinla.ps1` bu yüzden `App_Data` ve `logs` için `-skip` kuralları
+> uygular. Visual Studio'nun "Publish" düğmesini kullanacaksanız yayın
+> profilinde **"Remove additional files at destination" seçeneğini
+> işaretlemeyin.**
 
 Ters vekil (IIS, nginx) arkasında HTTPS sonlandırılıyorsa `ForwardedHeaders`
 zaten açık; `KnownProxies` listesini daraltmanız önerilir.
+
+### Yedekleme
+
+Yedeklenecek tek şey `App_Data` klasörüdür. İçinde veritabanı ve SMTP
+şifresini çözen anahtarlar bulunur; ikisi birlikte yedeklenmelidir.
 
 ## Tasarım
 
