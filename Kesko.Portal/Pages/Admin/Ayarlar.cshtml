@@ -1,0 +1,279 @@
+@page "/admin/ayarlar"
+@model Kesko.Portal.Pages.Admin.AyarlarModel
+@{
+    var s = Model.Smtp;
+    var site = Model.Site;
+    var tr = System.Globalization.CultureInfo.GetCultureInfo("tr-TR");
+}
+
+<div class="sayfa-bas">
+    <div>
+        <h2>SMTP &amp; site ayarları</h2>
+        <p>
+            Formdan gelen taleplerin hangi e-posta hesabından, kime gönderileceğini
+            burada tanımlarsınız. Şifre şifrelenerek saklanır ve bir daha ekranda gösterilmez.
+        </p>
+    </div>
+</div>
+
+<div class="izgara g-23">
+
+    @* ---------- SMTP ---------- *@
+    <div>
+        <form method="post" action="/admin/ayarlar?handler=Smtp">
+            @Html.AntiForgeryToken()
+
+            <div class="kart">
+                <div class="kart-bas">
+                    <div>
+                        <h3>Giden e-posta sunucusu</h3>
+                        <p class="ipucu">Barındırma firmanızın verdiği SMTP bilgileri.</p>
+                    </div>
+                    @if (s.SonTestUtc is not null)
+                    {
+                        <span class="sag rozet @(s.SonTestBasarili ? "s-kazanildi" : "s-spam")"
+                              title="@s.SonTestSonuc">
+                            Son test: @s.SonTestUtc.Value.ToLocalTime().ToString("dd.MM HH:mm", tr)
+                        </span>
+                    }
+                </div>
+
+                <div class="kart-ic">
+                    <div class="filtre-satir" style="gap:12px">
+                        <label class="alan gen">
+                            <span>Sunucu adresi</span>
+                            <input asp-for="Smtp.Sunucu" placeholder="mail.kesko.com.tr" autocomplete="off">
+                        </label>
+                        <label class="alan alan-w100">
+                            <span>Port</span>
+                            <input asp-for="Smtp.Port" type="number" min="1" max="65535">
+                        </label>
+                        <label class="alan alan-w140">
+                            <span>Güvenlik</span>
+                            <select asp-for="Smtp.Guvenlik">
+                                <option value="starttls">STARTTLS (587)</option>
+                                <option value="ssl">SSL/TLS (465)</option>
+                                <option value="none">Yok (25)</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <div class="filtre-satir mt-12" style="gap:12px">
+                        <label class="alan gen">
+                            <span>Kullanıcı adı</span>
+                            <input asp-for="Smtp.KullaniciAdi" placeholder="bildirim@@kesko.com.tr"
+                                   autocomplete="off" autocapitalize="off" spellcheck="false">
+                        </label>
+                        <label class="alan gen">
+                            <span>Şifre</span>
+                            <input asp-for="YeniSifre" type="password" autocomplete="new-password"
+                                   placeholder="@(Model.SifreKayitli ? "••••••••  (değiştirmek için yazın)" : "Şifreyi girin")">
+                            <small>
+                                @if (Model.SifreKayitli)
+                                {
+                                    @:Kayıtlı bir şifre var. Boş bırakırsanız değişmez.
+                                }
+                                else
+                                {
+                                    @:Kimlik doğrulaması gerekmiyorsa kullanıcı adını da boş bırakın.
+                                }
+                            </small>
+                        </label>
+                    </div>
+
+                    <hr class="ayirici">
+
+                    <div class="filtre-satir" style="gap:12px">
+                        <label class="alan gen">
+                            <span>Gönderen adres</span>
+                            <input asp-for="Smtp.GonderenAdres" type="email" placeholder="bildirim@@kesko.com.tr">
+                            <small>Çoğu sunucu, gönderen adresin kullanıcı adıyla aynı olmasını ister.</small>
+                        </label>
+                        <label class="alan gen">
+                            <span>Gönderen adı</span>
+                            <input asp-for="Smtp.GonderenAd" placeholder="Kesko Web">
+                        </label>
+                    </div>
+
+                    <div class="filtre-satir mt-12" style="gap:12px">
+                        <label class="alan gen">
+                            <span>Bildirim alacak adresler</span>
+                            <input asp-for="Smtp.AliciAdresler" placeholder="merhaba@@kesko.com.tr, satis@@kesko.com.tr">
+                            <small>Virgülle ayırarak birden fazla adres yazabilirsiniz.</small>
+                        </label>
+                        <label class="alan gen">
+                            <span>Yanıt adresi (isteğe bağlı)</span>
+                            <input asp-for="Smtp.YanitAdresi" type="email" placeholder="satis@@kesko.com.tr">
+                            <small>Boşsa talebi gönderen kişinin adresi yanıt adresi olur.</small>
+                        </label>
+                    </div>
+
+                    <hr class="ayirici">
+
+                    <label class="onay">
+                        <input asp-for="Smtp.BildirimAktif" type="checkbox">
+                        <span>
+                            <b>Yeni talep geldiğinde bildirim e-postası gönder</b>
+                            <small>Kapalıyken talepler yine kaydedilir, yalnızca e-posta gitmez.</small>
+                        </span>
+                    </label>
+
+                    <label class="onay mt-12">
+                        <input asp-for="Smtp.OtomatikYanitAktif" type="checkbox">
+                        <span>
+                            <b>Formu dolduran kişiye otomatik teşekkür e-postası gönder</b>
+                            <small>Yalnızca e-posta adresi girilmiş taleplerde çalışır.</small>
+                        </span>
+                    </label>
+
+                    <div class="mt-16">
+                        <label class="alan">
+                            <span>Otomatik yanıt konusu</span>
+                            <input asp-for="Smtp.OtomatikYanitKonu" maxlength="200">
+                        </label>
+                        <label class="alan mt-12">
+                            <span>Otomatik yanıt metni</span>
+                            <textarea asp-for="Smtp.OtomatikYanitGovde" rows="7"></textarea>
+                            <small>
+                                Kullanılabilir yer tutucular:
+                                <code>{Yetkili}</code>, <code>{Firma}</code>, <code>{Referans}</code>
+                            </small>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="kart-dip satir">
+                    <button class="dug dug-n" type="submit" data-bekle="Kaydediliyor…">
+                        @Ikon.Ciz("ok", 15) Ayarları kaydet
+                    </button>
+                    <span class="kucuk">Şifre, uygulama anahtarıyla şifrelenip saklanır.</span>
+                </div>
+            </div>
+
+            @* Test gonderimi ayni formun alanlarini kullanir: kaydetmeden
+               once denemek icin ikinci bir gonderme dugmesi. *@
+            <div class="kart mt-16">
+                <div class="kart-bas">
+                    <div>
+                        <h3>Bağlantıyı test et</h3>
+                        <p class="ipucu">Yukarıdaki alanlarla tek bir e-posta gönderir. Kaydetmeden önce deneyebilirsiniz.</p>
+                    </div>
+                </div>
+                <div class="kart-ic">
+                    <div class="filtre-satir" style="gap:12px">
+                        <label class="alan gen">
+                            <span>Test e-postasının gideceği adres</span>
+                            <input asp-for="TestAdres" type="email"
+                                   placeholder="@(string.IsNullOrWhiteSpace(s.AliciAdresler) ? "ornek@kesko.com.tr" : s.AliciAdresler.Split(',')[0].Trim())">
+                            <small>Boş bırakırsanız bildirim adreslerinin ilkine gönderilir.</small>
+                        </label>
+                        <button class="dug dug-y" type="submit" formaction="/admin/ayarlar?handler=Test"
+                                data-bekle="Gönderiliyor…">
+                            @Ikon.Ciz("gonder", 15) Test e-postası gönder
+                        </button>
+                    </div>
+
+                    @if (s.SonTestUtc is not null)
+                    {
+                        <div class="uyari @(s.SonTestBasarili ? "u-ok" : "u-hata") mt-16">
+                            @Ikon.Ciz(s.SonTestBasarili ? "ok" : "uyari", 18)
+                            <div>
+                                <b>@(s.SonTestBasarili ? "Son test başarılı" : "Son test başarısız")</b>
+                                @s.SonTestSonuc
+                                <div class="kucuk mt-8" style="opacity:.8">
+                                    @s.SonTestUtc.Value.ToLocalTime().ToString("d MMMM yyyy HH:mm", tr)
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </form>
+    </div>
+
+    @* ---------- yan kolon ---------- *@
+    <div>
+        <div class="kart">
+            <div class="kart-bas">
+                <div>
+                    <h3>Site sabitleri</h3>
+                    <p class="ipucu">Sitedeki iletişim bilgileri ve kargo eşiği.</p>
+                </div>
+            </div>
+            <form method="post" action="/admin/ayarlar?handler=Site">
+                @Html.AntiForgeryToken()
+                <div class="kart-ic">
+                    <label class="alan">
+                        <span>Kargo bedava eşiği (adet)</span>
+                        <input asp-for="Site.KargoBedavaEsik" type="number" min="1" step="10">
+                        <small>Sipariş hattındaki ilerleme çubuğu ve metinler bu değere göre çalışır.</small>
+                    </label>
+                    <label class="alan mt-12">
+                        <span>İletişim e-postası</span>
+                        <input asp-for="Site.IletisimEposta" type="email">
+                    </label>
+                    <label class="alan mt-12">
+                        <span>İletişim telefonu</span>
+                        <input asp-for="Site.IletisimTelefon" placeholder="+90 (312) 000 00 00">
+                    </label>
+                    <label class="alan mt-12">
+                        <span>WhatsApp numarası</span>
+                        <input asp-for="Site.WhatsappNumara" placeholder="905321234567" inputmode="numeric">
+                        <small>Yalnızca rakam; ülke koduyla başlar.</small>
+                    </label>
+
+                    <hr class="ayirici">
+
+                    <label class="onay">
+                        <input asp-for="Site.FormlarAktif" type="checkbox">
+                        <span>
+                            <b>Site formları açık</b>
+                            <small>Kapatırsanız gönderimler reddedilir ve ziyaretçiye aşağıdaki mesaj gösterilir.</small>
+                        </span>
+                    </label>
+
+                    <label class="alan mt-12">
+                        <span>Form kapalıyken gösterilecek mesaj</span>
+                        <textarea asp-for="Site.BakimMesaji" rows="3"
+                                  placeholder="Form geçici olarak kapalı. Lütfen telefonla ulaşın."></textarea>
+                    </label>
+                </div>
+                <div class="kart-dip">
+                    <button class="dug dug-n" type="submit" data-bekle="Kaydediliyor…">
+                        @Ikon.Ciz("ok", 15) Site ayarlarını kaydet
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div class="kart mt-16">
+            <div class="kart-bas"><h3>Yaygın SMTP ayarları</h3></div>
+            <div class="kart-ic">
+                <ul class="ozet">
+                    <li><span class="k">Gmail / Workspace</span><span class="v kucuk">smtp.gmail.com · 587 · STARTTLS<br><span class="sessiz">uygulama şifresi gerekir</span></span></li>
+                    <li><span class="k">Microsoft 365</span><span class="v kucuk">smtp.office365.com · 587 · STARTTLS</span></li>
+                    <li><span class="k">Yandex 360</span><span class="v kucuk">smtp.yandex.com.tr · 465 · SSL/TLS</span></li>
+                    <li><span class="k">cPanel hosting</span><span class="v kucuk">mail.alanadi.com · 465 · SSL/TLS</span></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="kart mt-16">
+            <div class="kart-bas"><h3>Panel erişimi</h3></div>
+            <div class="kart-ic">
+                <div class="uyari u-bilgi">
+                    @Ikon.Ciz("kilit", 18)
+                    <div>
+                        Kullanıcı adı ve şifre <code>appsettings.json</code> içindeki
+                        <code>Admin</code> bölümünde tutulur. Şifre düz metin değil,
+                        PBKDF2 özeti olarak saklanır.
+                        <div class="kucuk mt-8">
+                            Yeni şifre özeti üretmek için proje klasöründe:
+                            <br><code>dotnet run -- sifre-ozeti "YeniSifre"</code>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

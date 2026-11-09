@@ -1,0 +1,423 @@
+@*
+    Siparis ve teklif listelerinin ortak govdesi: sekmeler, filtre, tablo,
+    toplu islem seridi ve sayfalama. Iki sayfa da ayni modeli besler.
+*@
+@model Kesko.Portal.Pages.Admin.TalepListeBase
+@{
+    var m = Model;
+    var f = m.F;
+    var siparis = m.Tur == TalepTur.Siparis;
+    var tr = System.Globalization.CultureInfo.GetCultureInfo("tr-TR");
+
+    // Siralanabilir baslik baglantisi: ayni kolona tekrar basilirsa yon doner.
+    (string url, string sinif, string ikon) Sirala(string anahtar)
+    {
+        var etkin = f.Sira == anahtar;
+        var yeniYon = etkin && f.Yon == "desc" ? "asc" : "desc";
+        return (
+            m.Baglanti(("sira", anahtar), ("yon", yeniYon), ("sayfa", null)),
+            etkin ? "etkin" : "",
+            etkin ? (f.Yon == "asc" ? "yukari" : "asagi") : "sirala");
+    }
+
+    // Durum etiketleri tek yerde tanimli (Talep.DurumEtiket); burada yalnizca kisaltma.
+    static string DurumAd(TalepDurum d) => new Talep { Durum = d }.DurumEtiket;
+}
+
+<div class="kart">
+
+    @* ---- durum sekmeleri ---- *@
+    <div class="sekme">
+        <a class="@(f.Durum is null ? "aktif" : "")" href="@m.Baglanti(("d", null), ("sayfa", null))">
+            Tümü <span class="n">@m.TumuSayisi.ToString("N0", tr)</span>
+        </a>
+        @foreach (var d in Enum.GetValues<TalepDurum>())
+        {
+            var sayi = m.DurumSayilari.TryGetValue(d, out var s) ? s : 0;
+            if (sayi == 0 && f.Durum != d) { continue; }
+            <a class="@(f.Durum == d ? "aktif" : "")" href="@m.Baglanti(("d", d.ToString()), ("sayfa", null))">
+                @DurumAd(d) <span class="n">@sayi.ToString("N0", tr)</span>
+            </a>
+        }
+    </div>
+
+    @* ---- filtre ---- *@
+    <form class="filtre" id="filtre-form" method="get" action="@m.ListeYolu">
+        @* Siralama ve sayfa boyutu filtre gonderiminde korunur. *@
+        <input type="hidden" name="sira" value="@f.Sira">
+        <input type="hidden" name="yon" value="@f.Yon">
+        <input type="hidden" name="boyut" value="@f.Boyut">
+        @if (f.Durum is not null)
+        {
+            <input type="hidden" name="d" value="@f.Durum">
+        }
+
+        <div class="filtre-satir">
+            <label class="alan ara">
+                <span>Ara</span>
+                @Ikon.Ciz("ara")
+                <input type="search" name="q" value="@f.Arama" data-gecikmeli
+                       placeholder="Firma, yetkili, e-posta, telefon, referans, mesaj…" autocomplete="off">
+            </label>
+
+            <label class="alan alan-w140">
+                <span>Başlangıç</span>
+                <input type="date" name="bas" value="@f.Baslangic?.ToString("yyyy-MM-dd")" data-oto>
+            </label>
+
+            <label class="alan alan-w140">
+                <span>Bitiş</span>
+                <input type="date" name="bit" value="@f.Bitis?.ToString("yyyy-MM-dd")" data-oto>
+            </label>
+
+            @if (siparis)
+            {
+                <label class="alan alan-w140">
+                    <span>Ürün</span>
+                    <select name="u" data-oto>
+                        <option value="">Hepsi</option>
+                        @foreach (var u in m.Urunler)
+                        {
+                            <option value="@u" selected="@(f.Urun == u)">@u</option>
+                        }
+                    </select>
+                </label>
+            }
+            else
+            {
+                <label class="alan" style="width:190px">
+                    <span>İlgilenilen hat</span>
+                    <select name="h" data-oto>
+                        <option value="">Hepsi</option>
+                        @foreach (var h in m.Hatlar)
+                        {
+                            <option value="@h" selected="@(f.Hat == h)">@h</option>
+                        }
+                    </select>
+                </label>
+            }
+
+            <button class="dug dug-n" type="submit">@Ikon.Ciz("filtre", 15) Filtrele</button>
+
+            <button class="dug dug-g" type="button" id="gelismis-dug"
+                    aria-expanded="false" aria-controls="gelismis">
+                Gelişmiş
+            </button>
+
+            @if (f.FiltreVarMi)
+            {
+                <a class="dug dug-t" href="@m.ListeYolu">@Ikon.Ciz("kapat", 14) Temizle</a>
+            }
+        </div>
+
+        <div class="filtre-satir" id="gelismis" hidden>
+            <label class="alan alan-w120">
+                <span>Gramaj</span>
+                <select name="g" data-oto>
+                    <option value="">Hepsi</option>
+                    @foreach (var g in m.Gramajlar)
+                    {
+                        <option value="@g" selected="@(f.Gramaj == g)">@g</option>
+                    }
+                </select>
+            </label>
+
+            @if (siparis)
+            {
+                <label class="alan alan-w140">
+                    <span>Teslimat bölgesi</span>
+                    <select name="b" data-oto>
+                        <option value="">Hepsi</option>
+                        <option value="ic" selected="@(f.Bolge == "ic")">Ankara içi</option>
+                        <option value="dis" selected="@(f.Bolge == "dis")">Ankara dışı</option>
+                    </select>
+                </label>
+
+                <label class="alan alan-w100">
+                    <span>Adet (min)</span>
+                    <input type="number" name="min" min="0" step="10" value="@f.AdetMin" placeholder="0">
+                </label>
+
+                <label class="alan alan-w100">
+                    <span>Adet (maks)</span>
+                    <input type="number" name="max" min="0" step="10" value="@f.AdetMax" placeholder="∞">
+                </label>
+            }
+
+            <label class="alan alan-w140">
+                <span>Şehir</span>
+                <input type="text" name="s" value="@f.Sehir" list="sehir-listesi" placeholder="Ankara">
+                <datalist id="sehir-listesi">
+                    @foreach (var s in m.Sehirler)
+                    {
+                        <option value="@s"></option>
+                    }
+                </datalist>
+            </label>
+
+            <label class="alan alan-w120">
+                <span>Sayfa boyutu</span>
+                <select name="boyut" data-oto>
+                    @foreach (var b in new[] { 10, 25, 50, 100, 250 })
+                    {
+                        <option value="@b" selected="@(f.Boyut == b)">@b satır</option>
+                    }
+                </select>
+            </label>
+        </div>
+
+        @if (f.FiltreVarMi)
+        {
+            <div class="cipler">
+                <span class="mono">Etkin filtre</span>
+                @if (!string.IsNullOrWhiteSpace(f.Arama))
+                {
+                    <span class="cip">“@f.Arama”<a href="@m.Baglanti(("q", null))" aria-label="Arama filtresini kaldır">@Ikon.Ciz("kapat", 10)</a></span>
+                }
+                @if (f.Durum is not null)
+                {
+                    <span class="cip">@DurumAd(f.Durum.Value)<a href="@m.Baglanti(("d", null))" aria-label="Durum filtresini kaldır">@Ikon.Ciz("kapat", 10)</a></span>
+                }
+                @if (f.Baslangic is not null)
+                {
+                    <span class="cip">@f.Baslangic?.ToString("dd.MM.yyyy") sonrası<a href="@m.Baglanti(("bas", null))" aria-label="Başlangıç filtresini kaldır">@Ikon.Ciz("kapat", 10)</a></span>
+                }
+                @if (f.Bitis is not null)
+                {
+                    <span class="cip">@f.Bitis?.ToString("dd.MM.yyyy") öncesi<a href="@m.Baglanti(("bit", null))" aria-label="Bitiş filtresini kaldır">@Ikon.Ciz("kapat", 10)</a></span>
+                }
+                @if (!string.IsNullOrWhiteSpace(f.Urun))
+                {
+                    <span class="cip">@f.Urun<a href="@m.Baglanti(("u", null))" aria-label="Ürün filtresini kaldır">@Ikon.Ciz("kapat", 10)</a></span>
+                }
+                @if (!string.IsNullOrWhiteSpace(f.Gramaj))
+                {
+                    <span class="cip">@f.Gramaj<a href="@m.Baglanti(("g", null))" aria-label="Gramaj filtresini kaldır">@Ikon.Ciz("kapat", 10)</a></span>
+                }
+                @if (!string.IsNullOrWhiteSpace(f.Bolge))
+                {
+                    <span class="cip">@(f.Bolge == "ic" ? "Ankara içi" : "Ankara dışı")<a href="@m.Baglanti(("b", null))" aria-label="Bölge filtresini kaldır">@Ikon.Ciz("kapat", 10)</a></span>
+                }
+                @if (!string.IsNullOrWhiteSpace(f.Hat))
+                {
+                    <span class="cip">@f.Hat<a href="@m.Baglanti(("h", null))" aria-label="Hat filtresini kaldır">@Ikon.Ciz("kapat", 10)</a></span>
+                }
+                @if (!string.IsNullOrWhiteSpace(f.Sehir))
+                {
+                    <span class="cip">@f.Sehir<a href="@m.Baglanti(("s", null))" aria-label="Şehir filtresini kaldır">@Ikon.Ciz("kapat", 10)</a></span>
+                }
+                @if (f.AdetMin is not null || f.AdetMax is not null)
+                {
+                    <span class="cip">
+                        @(f.AdetMin?.ToString("N0", tr) ?? "0")–@(f.AdetMax?.ToString("N0", tr) ?? "∞") adet
+                        <a href="@m.Baglanti(("min", null), ("max", null))" aria-label="Adet filtresini kaldır">@Ikon.Ciz("kapat", 10)</a>
+                    </span>
+                }
+            </div>
+        }
+    </form>
+
+    @* ---- toplu islem ---- *@
+    <div class="toplu" id="toplu-serit">
+        <b><span data-sayi>0</span> talep seçili</b>
+        <div class="sag">
+            @* Filtre querystring'i eylem adresinde korunur: islem sonrasi
+               ayni listeye geri donulur. *@
+            <form method="post" action="@m.Baglanti(("handler", "Toplu"))"
+                  data-onay="Seçili taleplerin durumu değiştirilecek. Onaylıyor musunuz?">
+                @Html.AntiForgeryToken()
+                <select name="yeniDurum" required aria-label="Yeni durum">
+                    <option value="">Yeni durum seçin…</option>
+                    @foreach (var d in Enum.GetValues<TalepDurum>())
+                    {
+                        <option value="@d">@DurumAd(d)</option>
+                    }
+                </select>
+                <button class="dug dug-y dug-k" type="submit">Uygula</button>
+            </form>
+            <button class="dug dug-t dug-k" type="button" data-vazgec style="color:#fff">Vazgeç</button>
+        </div>
+    </div>
+
+    @* ---- tablo ---- *@
+    @if (m.Sonuc.Toplam == 0)
+    {
+        <div class="bos">
+            @Ikon.Ciz("bos-kutu", 52)
+            <h3>@(f.FiltreVarMi ? "Bu filtreye uyan talep yok" : "Henüz talep gelmemiş")</h3>
+            <p>
+                @if (f.FiltreVarMi)
+                {
+                    @:Filtreleri gevşetip tekrar deneyin.
+                }
+                else
+                {
+                    @:Sitedeki form doldurulduğunda talepler anında bu listeye düşer.
+                }
+            </p>
+            @if (f.FiltreVarMi)
+            {
+                <a class="dug dug-g" href="@m.ListeYolu">Filtreleri temizle</a>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="tablo-sar">
+            <table class="tbl" id="talep-tablo">
+                <thead>
+                <tr>
+                    <th class="daralt">
+                        <input type="checkbox" data-hepsi aria-label="Tümünü seç">
+                    </th>
+                    <th class="daralt">Referans</th>
+                    <th>
+                        @{ var sFirma = Sirala("firma"); }
+                        <a class="@sFirma.sinif" href="@sFirma.url">Firma / yetkili @Ikon.Ciz(sFirma.ikon, 11)</a>
+                    </th>
+                    @if (siparis)
+                    {
+                        <th>Ürün</th>
+                        <th class="sag">
+                            @{ var sAdet = Sirala("adet"); }
+                            <a class="@sAdet.sinif" href="@sAdet.url">Adet @Ikon.Ciz(sAdet.ikon, 11)</a>
+                        </th>
+                        <th>Teslimat</th>
+                    }
+                    else
+                    {
+                        <th>İlgilenilen hat</th>
+                        <th>Gramaj</th>
+                    }
+                    <th>İletişim</th>
+                    <th class="daralt">
+                        @{ var sDurum = Sirala("durum"); }
+                        <a class="@sDurum.sinif" href="@sDurum.url">Durum @Ikon.Ciz(sDurum.ikon, 11)</a>
+                    </th>
+                    <th class="daralt sag">
+                        @{ var sTarih = Sirala("tarih"); }
+                        <a class="@sTarih.sinif" href="@sTarih.url">Geliş @Ikon.Ciz(sTarih.ikon, 11)</a>
+                    </th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var t in m.Sonuc.Satirlar)
+                {
+                    var detay = $"/admin/{m.Kok}/{t.Id}";
+                    <tr>
+                        <td class="daralt">
+                            <input type="checkbox" data-sec value="@t.Id"
+                                   aria-label="@t.Referans seç">
+                        </td>
+                        <td class="ref">@t.Referans</td>
+                        <td class="bas">
+                            <a class="satir-bag" href="@detay">
+                                @t.Baslik
+                                <small>@(t.Yetkili ?? "—")@(string.IsNullOrWhiteSpace(t.Sehir) ? "" : " · " + t.Sehir)</small>
+                            </a>
+                        </td>
+                        @if (siparis)
+                        {
+                            <td>
+                                @t.Urun
+                                @if (!string.IsNullOrWhiteSpace(t.Gramaj))
+                                {
+                                    <span class="etiket">@t.Gramaj</span>
+                                }
+                            </td>
+                            <td class="sag num">
+                                <b>@t.Adet?.ToString("N0", tr)</b>
+                                @if (t.KargoBedava)
+                                {
+                                    <span class="etiket sari" title="200 adet üzeri">kargo bedava</span>
+                                }
+                            </td>
+                            <td>@t.BolgeEtiket</td>
+                        }
+                        else
+                        {
+                            <td>@(t.Hat ?? "—")</td>
+                            <td>@(t.Gramaj ?? "—")</td>
+                        }
+                        <td>
+                            @if (!string.IsNullOrWhiteSpace(t.Eposta))
+                            {
+                                <a href="mailto:@t.Eposta" title="@t.Eposta">@t.Eposta</a>
+                            }
+                            else if (!string.IsNullOrWhiteSpace(t.Telefon))
+                            {
+                                <a href="tel:@t.TelefonHref">@t.Telefon</a>
+                            }
+                            else
+                            {
+                                <span class="sessiz">—</span>
+                            }
+                            @if (t.BildirimHata is not null)
+                            {
+                                <span class="etiket" style="background:var(--err-bg);color:var(--err)"
+                                      title="@t.BildirimHata">bildirim gitmedi</span>
+                            }
+                        </td>
+                        <td class="daralt"><span class="rozet @t.DurumSinif">@t.DurumEtiket</span></td>
+                        <td class="daralt sag num kucuk sessiz">
+                            <time datetime="@t.OlusturmaUtc.ToString("o")">
+                                @t.OlusturmaUtc.ToLocalTime().ToString("dd.MM.yyyy", tr)<br>
+                                @t.OlusturmaUtc.ToLocalTime().ToString("HH:mm", tr)
+                            </time>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+
+        @* ---- sayfalama ---- *@
+        <div class="sayfalama">
+            <span class="bilgi">
+                @m.Sonuc.Ilk.ToString("N0", tr)–@m.Sonuc.Son.ToString("N0", tr) /
+                <b>@m.Sonuc.Toplam.ToString("N0", tr)</b> talep
+                @if (siparis && m.ToplamAdet > 0)
+                {
+                    @: · toplam <b>@m.ToplamAdet.ToString("N0", tr)</b> adet
+                }
+            </span>
+
+            @if (m.Sonuc.SayfaSayisi > 1)
+            {
+                var simdi = m.Sonuc.Sayfa;
+                var son = m.Sonuc.SayfaSayisi;
+                <nav class="sayfalar" aria-label="Sayfalama">
+                    @if (simdi > 1)
+                    {
+                        <a href="@m.Baglanti(("sayfa", (simdi - 1).ToString()))" aria-label="Önceki sayfa">@Ikon.Ciz("sol", 14)</a>
+                    }
+                    @{
+                        var gosterilecek = new List<int> { 1, son, simdi, simdi - 1, simdi + 1 }
+                            .Where(x => x >= 1 && x <= son).Distinct().OrderBy(x => x).ToList();
+                        var oncekiNo = 0;
+                    }
+                    @foreach (var no in gosterilecek)
+                    {
+                        if (oncekiNo > 0 && no - oncekiNo > 1)
+                        {
+                            <span class="bos">…</span>
+                        }
+                        if (no == simdi)
+                        {
+                            <span class="simdi" aria-current="page">@no</span>
+                        }
+                        else
+                        {
+                            <a href="@m.Baglanti(("sayfa", no.ToString()))">@no</a>
+                        }
+                        oncekiNo = no;
+                    }
+                    @if (simdi < son)
+                    {
+                        <a href="@m.Baglanti(("sayfa", (simdi + 1).ToString()))" aria-label="Sonraki sayfa">@Ikon.Ciz("sag", 14)</a>
+                    }
+                </nav>
+            }
+        </div>
+    }
+</div>

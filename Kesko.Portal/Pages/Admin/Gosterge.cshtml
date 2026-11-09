@@ -1,0 +1,210 @@
+@page "/admin/gosterge"
+@model Kesko.Portal.Pages.Admin.GostergeModel
+@{
+    var v = Model.V;
+    var tr = System.Globalization.CultureInfo.GetCultureInfo("tr-TR");
+    var bugun = DateTime.Now;
+}
+
+@section UstEylem {
+    <a class="dug dug-g dug-k" href="/admin/raporlar">@Ikon.Ciz("rapor", 15) Rapor al</a>
+}
+
+<div class="sayfa-bas">
+    <div>
+        <h2>Merhaba, bugün @bugun.ToString("d MMMM yyyy", tr)</h2>
+        <p>
+            Son 30 günün form hareketi, ürün ve bölge dağılımı, bekleyen talepler.
+            Rakamlar spam işaretli kayıtlar hariç tutularak hesaplanır.
+        </p>
+    </div>
+    <div class="eylem">
+        <a class="dug dug-n" href="/admin/siparisler?d=Yeni">
+            @Ikon.Ciz("siparis", 15) Bekleyen talepler
+            @if (v.BekleyenSayisi > 0)
+            {
+                <span class="rozet yalin" style="background:rgba(255,255,255,.18);color:#fff">@v.BekleyenSayisi</span>
+            }
+        </a>
+    </div>
+</div>
+
+@if (!v.SmtpKurulu)
+{
+    <div class="uyari u-dikkat" style="margin-bottom:16px">
+        @Ikon.Ciz("mail", 18)
+        <div>
+            <b>E-posta bildirimi kapalı.</b>
+            Formdan gelen talepler veritabanına kaydediliyor, ancak kimseye e-posta gitmiyor.
+            <a href="/admin/ayarlar">SMTP ayarlarını tamamlayın</a>.
+        </div>
+        <button class="kapat" aria-label="Kapat">&times;</button>
+    </div>
+}
+else if (v.SmtpHataSayisi > 0)
+{
+    <div class="uyari u-hata" style="margin-bottom:16px">
+        @Ikon.Ciz("uyari", 18)
+        <div>
+            <b>@v.SmtpHataSayisi talebin bildirimi gönderilemedi.</b>
+            SMTP ayarlarını kontrol edip
+            <a href="/admin/ayarlar">test e-postası gönderin</a>.
+        </div>
+        <button class="kapat" aria-label="Kapat">&times;</button>
+    </div>
+}
+
+@* ---------- KPI ---------- *@
+<div class="izgara g-5">
+    @foreach (var (k, i) in v.Kpiler.Select((k, i) => (k, i)))
+    {
+        <div class="kpi @(i == 0 ? "vurgu" : "")">
+            <div class="et">
+                <span class="mono">@k.Etiket</span>
+                @if (k.Degisim is double dg)
+                {
+                    var sinif = dg > 0 ? "art" : dg < 0 ? "azal" : "sabit";
+                    var ok = dg > 0 ? "yukari" : dg < 0 ? "asagi" : "sirala";
+                    <span class="delta @sinif y-sag">
+                        @Ikon.Ciz(ok, 11)
+                        @(Math.Abs(dg).ToString("0.#", tr))%
+                    </span>
+                }
+            </div>
+            <div class="deger">@k.Deger</div>
+            <p class="alt">@k.AltMetin</p>
+            @Grafik.Kivilcim(k.Seri, i == 0 ? "#2B2971" : "#8A88D8")
+        </div>
+    }
+</div>
+
+@* ---------- akis grafigi + durum halkasi ---------- *@
+<div class="izgara g-23 mt-16">
+    <div class="kart">
+        <div class="kart-bas">
+            <div>
+                <h3>Son 30 günün talep akışı</h3>
+                <p class="ipucu">Dolu alan toplam talebi, kesikli çizgi sipariş adedini gösterir.</p>
+            </div>
+            <div class="sag">
+                <span class="satir kucuk sessiz">
+                    <span style="width:11px;height:11px;border-radius:3px;background:#2B2971;display:inline-block"></span> Talep
+                    <span style="width:14px;height:0;border-top:2px dashed #C9A800;display:inline-block;margin-left:8px"></span> Adet
+                </span>
+            </div>
+        </div>
+        <div class="kart-ic">
+            @Grafik.Alan(v.Seri, adetSerisi: true)
+        </div>
+    </div>
+
+    <div class="kart">
+        <div class="kart-bas">
+            <h3>Durum dağılımı</h3>
+        </div>
+        <div class="kart-ic">
+            <div class="halka-sar">
+                @Grafik.Halka(v.DurumDagilimi,
+                    v.DurumDagilimi.Sum(d => d.Deger).ToString("N0", tr), "talep")
+                @Grafik.Aciklama(v.DurumDagilimi)
+            </div>
+        </div>
+    </div>
+</div>
+
+@* ---------- dagilimlar ---------- *@
+<div class="izgara g-3 mt-16">
+    <div class="kart">
+        <div class="kart-bas">
+            <h3>Ürün dağılımı</h3>
+            <a class="dug dug-t dug-k sag" href="/admin/siparisler">Tümü @Ikon.Ciz("sag", 13)</a>
+        </div>
+        <div class="kart-ic">
+            @Grafik.YatayCubuk(v.UrunDagilimi, adetGoster: true)
+        </div>
+    </div>
+
+    <div class="kart">
+        <div class="kart-bas">
+            <h3>En çok talep gelen şehirler</h3>
+        </div>
+        <div class="kart-ic">
+            @Grafik.YatayCubuk(v.SehirDagilimi)
+        </div>
+    </div>
+
+    <div class="kart">
+        <div class="kart-bas">
+            <h3>İlgilenilen ürün hatları</h3>
+            <a class="dug dug-t dug-k sag" href="/admin/teklifler">Tümü @Ikon.Ciz("sag", 13)</a>
+        </div>
+        <div class="kart-ic">
+            @Grafik.YatayCubuk(v.HatDagilimi)
+        </div>
+    </div>
+</div>
+
+@* ---------- son talepler ---------- *@
+<div class="kart mt-16">
+    <div class="kart-bas">
+        <div>
+            <h3>Son gelen talepler</h3>
+            <p class="ipucu">Satıra tıklayarak talebin tüm ayrıntısına gidebilirsiniz.</p>
+        </div>
+        <div class="sag">
+            <a class="dug dug-g dug-k" href="/admin/siparisler">Sipariş talepleri</a>
+            <a class="dug dug-g dug-k" href="/admin/teklifler">Teklif talepleri</a>
+        </div>
+    </div>
+
+    @if (v.SonTalepler.Count == 0)
+    {
+        <div class="bos">
+            @Ikon.Ciz("bos-kutu", 52)
+            <h3>Henüz talep yok</h3>
+            <p>
+                Sitedeki sipariş hattı veya toplu tedarik formu doldurulduğunda
+                talepler anında burada listelenir.
+            </p>
+            <a class="dug dug-g" href="/" target="_blank" rel="noopener">@Ikon.Ciz("dis", 15) Formu sitede gör</a>
+        </div>
+    }
+    else
+    {
+        <ul class="akis">
+            @foreach (var t in v.SonTalepler)
+            {
+                var sayfa = t.Tur == TalepTur.Siparis ? "siparis" : "teklif";
+                <li>
+                    <span class="av @(t.Tur == TalepTur.Teklif ? "t" : "")" aria-hidden="true">
+                        @(t.Baslik.Length > 0 ? char.ToUpperInvariant(t.Baslik[0]).ToString() : "?")
+                    </span>
+                    <span class="gov">
+                        <b><a href="/admin/@sayfa/@t.Id">@t.Baslik</a></b>
+                        <span>
+                            @t.Referans
+                            @if (t.Tur == TalepTur.Siparis)
+                            {
+                                @: · @t.Urun · @t.Gramaj · @t.Adet?.ToString("N0", tr) adet
+                            }
+                            else
+                            {
+                                @: · @t.Hat
+                            }
+                            @if (!string.IsNullOrWhiteSpace(t.Sehir))
+                            {
+                                @: · @t.Sehir
+                            }
+                        </span>
+                    </span>
+                    <span class="sag">
+                        <span class="rozet @t.DurumSinif">@t.DurumEtiket</span>
+                        <time datetime="@t.OlusturmaUtc.ToString("o")">
+                            @t.OlusturmaUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm", tr)
+                        </time>
+                    </span>
+                </li>
+            }
+        </ul>
+    }
+</div>

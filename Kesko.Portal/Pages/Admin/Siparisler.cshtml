@@ -1,0 +1,31 @@
+@page "/admin/siparisler"
+@model Kesko.Portal.Pages.Admin.SiparislerModel
+@{
+    ViewData["Baslik"] = "Sipariş talepleri";
+    ViewData["Yol"] = "Formdan gelenler";
+}
+
+@section UstEylem {
+    <a class="dug dug-g dug-k" href="@Model.Baglanti(("handler", "Csv"))">
+        @Ikon.Ciz("indir", 15) CSV
+    </a>
+}
+
+<div class="sayfa-bas">
+    <div>
+        <h2>Sipariş talepleri</h2>
+        <p>
+            Sitedeki sipariş hattından gelen talepler. Ürün, gramaj, adet ve teslimat
+            bölgesine göre filtreleyebilir, toplu durum değiştirebilir,
+            filtrelenmiş listeyi CSV olarak indirebilirsiniz.
+        </p>
+    </div>
+    <div class="eylem">
+        <a class="dug dug-g" href="@Model.Baglanti(("handler", "Csv"))" data-bekle="Hazırlanıyor…">
+            @Ikon.Ciz("indir", 15) Filtreli listeyi indir
+        </a>
+        <a class="dug dug-n" href="/admin/raporlar?tur=Siparis">@Ikon.Ciz("rapor", 15) Rapora git</a>
+    </div>
+</div>
+
+<partial name="Shared/_TalepListe" model="(Kesko.Portal.Pages.Admin.TalepListeBase)Model" />

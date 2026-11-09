@@ -1,0 +1,18 @@
+# Metin dosyalari depoda LF ile durur, calisma kopyasinda isletim
+# sisteminin bicimine cevrilir. Windows/Linux arasinda gurultu olmaz.
+* text=auto
+
+*.cs      text diff=csharp
+*.cshtml  text
+*.csproj  text
+*.json    text
+*.css     text
+*.js      text
+*.html    text
+*.md      text
+
+# Ikili dosyalara dokunulmaz.
+*.png   binary
+*.webp  binary
+*.ico   binary
+*.db    binary

@@ -1,0 +1,102 @@
+@page "/admin/giris"
+@model Kesko.Portal.Pages.Admin.GirisModel
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="tr" data-tema="acik">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="robots" content="noindex,nofollow">
+    <title>Panel girişi — Kesko</title>
+    <link rel="icon" href="/assets/img/kesko-logo-lacivert.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@@12..96,700;12..96,800&family=Inter:wght@@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="~/admin/css/admin.css" asp-append-version="true">
+</head>
+<body>
+<div class="giris-kabuk">
+
+    <section class="giris-gorsel">
+        <img class="logo" src="/assets/img/kesko-logo-sari.png" alt="Kesko">
+        <div>
+            <h2>Formdan gelen<br><em>her talep</em> burada.</h2>
+            <p>
+                Sipariş hattı ve toplu tedarik formundan gelen talepler, SMTP bildirimleri,
+                filtreler ve raporlar tek panelde toplanır.
+            </p>
+        </div>
+        <div class="alt">Bi'Dilim bir KESKO markasıdır</div>
+    </section>
+
+    <section class="giris-form">
+        <div class="kutu">
+            <h1>Panel girişi</h1>
+            <p class="ipucu">Yönetim paneline erişmek için hesabınızla giriş yapın.</p>
+
+            @if (Model.Hata is not null)
+            {
+                <div class="uyari u-hata mt-8" style="margin-bottom:16px" role="alert">
+                    @Ikon.Ciz("uyari", 18)
+                    <span>@Model.Hata</span>
+                </div>
+            }
+
+            <form method="post" autocomplete="off">
+                <label class="alan">
+                    <span>Kullanıcı adı</span>
+                    <input asp-for="Kullanici" autocomplete="username" required
+                           autocapitalize="off" spellcheck="false" autofocus>
+                </label>
+
+                <label class="alan">
+                    <span>Şifre</span>
+                    <span class="sifre-sar">
+                        <input asp-for="Sifre" type="password" autocomplete="current-password" required
+                               id="sifre-giris">
+                        <button class="goz" type="button" id="goz-dug" aria-label="Şifreyi göster">
+                            @Ikon.Ciz("goz", 18)
+                        </button>
+                    </span>
+                </label>
+
+                <label class="onay mt-12">
+                    <input asp-for="BeniHatirla" type="checkbox">
+                    <span>Bu tarayıcıda oturumumu açık tut</span>
+                </label>
+
+                <button class="dug dug-n" type="submit" data-bekle="Kontrol ediliyor…">
+                    @Ikon.Ciz("kilit", 16) Giriş yap
+                </button>
+            </form>
+
+            <p class="dip">
+                Başarısız denemeler kayıt altına alınır. Beş hatalı denemeden sonra
+                bu IP adresi 15 dakika boyunca kilitlenir.
+            </p>
+        </div>
+    </section>
+</div>
+
+<script>
+    /* Sifre gorunurlugu. Giris sayfasi panel betigini yuklemez; bu kadarlik
+       etkilesim icin burada tutuluyor. */
+    (function () {
+        var dug = document.getElementById('goz-dug'), alan = document.getElementById('sifre-giris');
+        dug.addEventListener('click', function () {
+            var gizli = alan.type === 'password';
+            alan.type = gizli ? 'text' : 'password';
+            dug.setAttribute('aria-label', gizli ? 'Şifreyi gizle' : 'Şifreyi göster');
+            alan.focus();
+        });
+        var f = document.querySelector('form');
+        f.addEventListener('submit', function () {
+            var b = f.querySelector('[data-bekle]');
+            setTimeout(function () { b.disabled = true; b.textContent = b.dataset.bekle; }, 0);
+        });
+    })();
+</script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+# --- .NET derleme ciktilari ---
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+# --- Veri ve sirlar: ASLA surum kontrolune girmez ---
+# App_Data icinde musteri verisi (SQLite) ve SMTP sifresini cozen
+# DataProtection anahtarlari bulunur.
+App_Data/
+
+# Panel kullanici adi/sifresi ve diger yerel sirlar bu dosyada.
+# Her kurulumda elle olusturulur; ornegi README'de.
+appsettings.Local.json
+appsettings.*.local.json
+
+# --- Isletim sistemi ---
+Thumbs.db
+desktop.ini
+.DS_Store

@@ -1,0 +1,11 @@
+bin/
+obj/
+
+# Veritabani, DataProtection anahtarlari ve yuklenen dosyalar.
+# Bu klasor ASLA surum kontrolune girmemeli: musteri verisi ve
+# SMTP sifresini cozen anahtarlar burada.
+App_Data/
+
+# Yerel gelistirme sirlari
+appsettings.*.local.json
+*.user

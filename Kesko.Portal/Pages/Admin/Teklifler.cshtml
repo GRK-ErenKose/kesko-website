@@ -1,0 +1,31 @@
+@page "/admin/teklifler"
+@model Kesko.Portal.Pages.Admin.TekliflerModel
+@{
+    ViewData["Baslik"] = "Teklif talepleri";
+    ViewData["Yol"] = "Formdan gelenler";
+}
+
+@section UstEylem {
+    <a class="dug dug-g dug-k" href="@Model.Baglanti(("handler", "Csv"))">
+        @Ikon.Ciz("indir", 15) CSV
+    </a>
+}
+
+<div class="sayfa-bas">
+    <div>
+        <h2>Teklif talepleri</h2>
+        <p>
+            Toplu tedarik formundan gelen B2B talepleri: market, kantin, kafe, zincir
+            işletmeler ve private label başvuruları. İlgilenilen ürün hattına ve
+            şehre göre filtreleyin.
+        </p>
+    </div>
+    <div class="eylem">
+        <a class="dug dug-g" href="@Model.Baglanti(("handler", "Csv"))" data-bekle="Hazırlanıyor…">
+            @Ikon.Ciz("indir", 15) Filtreli listeyi indir
+        </a>
+        <a class="dug dug-n" href="/admin/raporlar?tur=Teklif">@Ikon.Ciz("rapor", 15) Rapora git</a>
+    </div>
+</div>
+
+<partial name="Shared/_TalepListe" model="(Kesko.Portal.Pages.Admin.TalepListeBase)Model" />

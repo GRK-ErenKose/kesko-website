@@ -1,0 +1,303 @@
+@page "/admin/raporlar"
+@model Kesko.Portal.Pages.Admin.RaporlarModel
+@{
+    var v = Model.V;
+    var tr = System.Globalization.CultureInfo.GetCultureInfo("tr-TR");
+    var gunSayisi = v.Bitis.DayNumber - v.Baslangic.DayNumber + 1;
+
+    // Onceki esit uzunluktaki donemle karsilastirma.
+    double? Fark(int simdi, int once) =>
+        once == 0 ? (simdi == 0 ? 0 : null) : Math.Round((simdi - once) * 100.0 / once, 1);
+
+    var talepFark = Fark(v.ToplamTalep, v.OncekiDonemTalep);
+    var adetFark = Fark(v.ToplamAdet, v.OncekiDonemAdet);
+}
+
+@section UstEylem {
+    <a class="dug dug-g dug-k" href="@Model.CsvBag()">@Ikon.Ciz("indir", 15) CSV</a>
+    <button class="dug dug-g dug-k" type="button" onclick="window.print()">@Ikon.Ciz("yazdir", 15) Yazdır</button>
+}
+
+<div class="sayfa-bas">
+    <div>
+        <h2>Raporlar</h2>
+        <p>
+            @v.Baslangic.ToString("d MMMM yyyy", tr) – @v.Bitis.ToString("d MMMM yyyy", tr)
+            (@gunSayisi gün). Karşılaştırma, aynı uzunluktaki önceki döneme göre yapılır.
+            Spam işaretli kayıtlar hesaba katılmaz.
+        </p>
+    </div>
+    <div class="eylem">
+        <a class="dug dug-g" href="@Model.CsvBag()">@Ikon.Ciz("indir", 15) Dönemi CSV indir</a>
+    </div>
+</div>
+
+@* ---------- aralik ve tur secimi ---------- *@
+<div class="kart" style="margin-bottom:16px">
+    <div class="kart-ic" style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">
+        <div>
+            <span class="mono" style="display:block;margin-bottom:7px">Hazır aralık</span>
+            <div class="sekme" style="padding:0">
+                <a class="@(Model.AralikEtkin("7") ? "aktif" : "")" href="@Model.AralikBag("7")">Son 7 gün</a>
+                <a class="@(Model.AralikEtkin("30") ? "aktif" : "")" href="@Model.AralikBag("30")">Son 30 gün</a>
+                <a class="@(Model.AralikEtkin("90") ? "aktif" : "")" href="@Model.AralikBag("90")">Son 90 gün</a>
+                <a class="@(Model.AralikEtkin("ay") ? "aktif" : "")" href="@Model.AralikBag("ay")">Bu ay</a>
+                <a class="@(Model.AralikEtkin("geceneay") ? "aktif" : "")" href="@Model.AralikBag("geceneay")">Geçen ay</a>
+                <a class="@(Model.AralikEtkin("yil") ? "aktif" : "")" href="@Model.AralikBag("yil")">Bu yıl</a>
+            </div>
+        </div>
+
+        <div>
+            <span class="mono" style="display:block;margin-bottom:7px">Tür</span>
+            <div class="sekme" style="padding:0">
+                <a class="@(Model.Tur is null ? "aktif" : "")" href="@Model.TurBag(null)">Tümü</a>
+                <a class="@(Model.Tur == TalepTur.Siparis ? "aktif" : "")" href="@Model.TurBag(TalepTur.Siparis)">Sipariş</a>
+                <a class="@(Model.Tur == TalepTur.Teklif ? "aktif" : "")" href="@Model.TurBag(TalepTur.Teklif)">Teklif</a>
+            </div>
+        </div>
+
+        <form method="get" action="/admin/raporlar" class="satir" style="gap:10px;align-items:flex-end;margin-left:auto">
+            @if (Model.Tur is not null)
+            {
+                <input type="hidden" name="tur" value="@Model.Tur">
+            }
+            <label class="alan alan-w140">
+                <span>Başlangıç</span>
+                <input type="date" name="bas" value="@v.Baslangic.ToString("yyyy-MM-dd")" required>
+            </label>
+            <label class="alan alan-w140">
+                <span>Bitiş</span>
+                <input type="date" name="bit" value="@v.Bitis.ToString("yyyy-MM-dd")" required>
+            </label>
+            <button class="dug dug-n" type="submit">@Ikon.Ciz("takvim", 15) Uygula</button>
+        </form>
+    </div>
+</div>
+
+@if (v.ToplamTalep == 0)
+{
+    <div class="kart">
+        <div class="bos">
+            @Ikon.Ciz("grafik", 52)
+            <h3>Bu dönemde kayıt yok</h3>
+            <p>Seçtiğiniz tarih aralığında hiç talep gelmemiş. Aralığı genişletmeyi deneyin.</p>
+            <a class="dug dug-g" href="/admin/raporlar?a=90">Son 90 güne bak</a>
+        </div>
+    </div>
+}
+else
+{
+
+@* ---------- ozet sayilar ---------- *@
+<div class="izgara g-5">
+    <div class="kpi vurgu">
+        <div class="et">
+            <span class="mono">Toplam talep</span>
+            @if (talepFark is double tf)
+            {
+                <span class="delta @(tf > 0 ? "art" : tf < 0 ? "azal" : "sabit") y-sag">
+                    @Ikon.Ciz(tf > 0 ? "yukari" : tf < 0 ? "asagi" : "sirala", 11)
+                    @(Math.Abs(tf).ToString("0.#", tr))%
+                </span>
+            }
+        </div>
+        <div class="deger">@v.ToplamTalep.ToString("N0", tr)</div>
+        <p class="alt">Önceki dönem @v.OncekiDonemTalep.ToString("N0", tr)</p>
+        @Grafik.Kivilcim(v.Seri.Select(s => s.Toplam).ToArray())
+    </div>
+
+    <div class="kpi">
+        <div class="et"><span class="mono">Sipariş / teklif</span></div>
+        <div class="deger">@v.SiparisSayisi.ToString("N0", tr)<span style="color:var(--muted-2)">/</span>@v.TeklifSayisi.ToString("N0", tr)</div>
+        <p class="alt">
+            Sipariş payı %@((v.ToplamTalep == 0 ? 0 : v.SiparisSayisi * 100.0 / v.ToplamTalep).ToString("0.#", tr))
+        </p>
+        @Grafik.Kivilcim(v.Seri.Select(s => s.Siparis).ToArray(), "#8A88D8")
+    </div>
+
+    <div class="kpi">
+        <div class="et">
+            <span class="mono">Talep edilen adet</span>
+            @if (adetFark is double af)
+            {
+                <span class="delta @(af > 0 ? "art" : af < 0 ? "azal" : "sabit") y-sag">
+                    @Ikon.Ciz(af > 0 ? "yukari" : af < 0 ? "asagi" : "sirala", 11)
+                    @(Math.Abs(af).ToString("0.#", tr))%
+                </span>
+            }
+        </div>
+        <div class="deger">@v.ToplamAdet.ToString("N0", tr)</div>
+        <p class="alt">Önceki dönem @v.OncekiDonemAdet.ToString("N0", tr)</p>
+        @Grafik.Kivilcim(v.Seri.Select(s => s.Adet).ToArray(), "#8A88D8")
+    </div>
+
+    <div class="kpi">
+        <div class="et"><span class="mono">Ortalama sipariş</span></div>
+        <div class="deger">@v.OrtalamaAdet.ToString("N0", tr)</div>
+        <p class="alt">Medyan @v.MedyanAdet.ToString("N0", tr) adet</p>
+        @Grafik.Kivilcim(v.Seri.Select(s => s.Adet).ToArray(), "#8A88D8")
+    </div>
+
+    <div class="kpi">
+        <div class="et"><span class="mono">Dönüşüm</span></div>
+        <div class="deger">@v.DonusumOrani.ToString("0.#", tr)%</div>
+        <p class="alt">Kapanan taleplerde kazanılan oranı</p>
+        @Grafik.Kivilcim(v.Seri.Select(s => s.Toplam).ToArray(), "#8A88D8")
+    </div>
+</div>
+
+@* ---------- akis ---------- *@
+<div class="kart mt-16">
+    <div class="kart-bas">
+        <div>
+            <h3>Günlük akış</h3>
+            <p class="ipucu">Dolu alan talep sayısı, kesikli çizgi talep edilen adet.</p>
+        </div>
+    </div>
+    <div class="kart-ic">
+        @Grafik.Alan(v.Seri, adetSerisi: true)
+    </div>
+</div>
+
+@* ---------- zaman dagilimlari ---------- *@
+<div class="izgara g-2 mt-16">
+    <div class="kart">
+        <div class="kart-bas">
+            <div>
+                <h3>Gün içi dağılım</h3>
+                <p class="ipucu">Hangi saatlerde form dolduruluyor — dönüş saatlerini planlamak için.</p>
+            </div>
+        </div>
+        <div class="kart-ic">@Grafik.Cubuk(v.SaatDagilimi)</div>
+    </div>
+
+    <div class="kart">
+        <div class="kart-bas">
+            <div>
+                <h3>Hafta günlerine göre</h3>
+                <p class="ipucu">Yoğun günler.</p>
+            </div>
+        </div>
+        <div class="kart-ic">@Grafik.Cubuk(v.HaftaGunuDagilimi)</div>
+    </div>
+</div>
+
+@* ---------- kirilimlar ---------- *@
+<div class="izgara g-3 mt-16">
+    <div class="kart">
+        <div class="kart-bas"><h3>Durum dağılımı</h3></div>
+        <div class="kart-ic">
+            <div class="halka-sar">
+                @Grafik.Halka(v.DurumDagilimi, v.ToplamTalep.ToString("N0", tr), "talep")
+                @Grafik.Aciklama(v.DurumDagilimi)
+            </div>
+        </div>
+    </div>
+
+    @if (v.UrunDagilimi.Count > 0)
+    {
+        <div class="kart">
+            <div class="kart-bas"><h3>Ürüne göre</h3></div>
+            <div class="kart-ic">@Grafik.YatayCubuk(v.UrunDagilimi, adetGoster: true)</div>
+        </div>
+    }
+
+    @if (v.GramajDagilimi.Count > 0)
+    {
+        <div class="kart">
+            <div class="kart-bas"><h3>Gramaja göre</h3></div>
+            <div class="kart-ic">
+                <div class="halka-sar">
+                    @Grafik.Halka(v.GramajDagilimi)
+                    @Grafik.Aciklama(v.GramajDagilimi)
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<div class="izgara g-3 mt-16">
+    @if (v.SehirDagilimi.Count > 0)
+    {
+        <div class="kart">
+            <div class="kart-bas"><h3>Şehre göre</h3></div>
+            <div class="kart-ic">@Grafik.YatayCubuk(v.SehirDagilimi, adetGoster: true)</div>
+        </div>
+    }
+
+    @if (v.BolgeDagilimi.Count > 0)
+    {
+        <div class="kart">
+            <div class="kart-bas">
+                <div>
+                    <h3>Teslimat bölgesi</h3>
+                    <p class="ipucu">Ankara içi dağıtım ile kargo ayrımı.</p>
+                </div>
+            </div>
+            <div class="kart-ic">
+                <div class="halka-sar">
+                    @Grafik.Halka(v.BolgeDagilimi)
+                    @Grafik.Aciklama(v.BolgeDagilimi)
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (v.HatDagilimi.Count > 0)
+    {
+        <div class="kart">
+            <div class="kart-bas">
+                <div>
+                    <h3>İlgilenilen hatlar</h3>
+                    <p class="ipucu">Hazırlanan hatlara gelen talep, yol haritası için sinyal.</p>
+                </div>
+            </div>
+            <div class="kart-ic">@Grafik.YatayCubuk(v.HatDagilimi)</div>
+        </div>
+    }
+</div>
+
+@* ---------- en aktif firmalar ---------- *@
+@if (v.EnAktifFirmalar.Count > 0)
+{
+    <div class="kart mt-16">
+        <div class="kart-bas">
+            <div>
+                <h3>En aktif firmalar</h3>
+                <p class="ipucu">Dönem içinde en çok talep oluşturan ilk @v.EnAktifFirmalar.Count firma.</p>
+            </div>
+        </div>
+        <div class="tablo-sar">
+            <table class="tbl">
+                <thead>
+                <tr>
+                    <th class="daralt">#</th>
+                    <th>Firma</th>
+                    <th>Şehir</th>
+                    <th class="sag">Talep</th>
+                    <th class="sag">Toplam adet</th>
+                    <th class="sag">Son talep</th>
+                </tr>
+                </thead>
+                <tbody>
+                @{ var sira = 1; }
+                @foreach (var f in v.EnAktifFirmalar)
+                {
+                    <tr>
+                        <td class="daralt sessiz num">@(sira++)</td>
+                        <td class="bas">
+                            <a class="satir-bag" href="/admin/siparisler?q=@Uri.EscapeDataString(f.Firma)">@f.Firma</a>
+                        </td>
+                        <td>@(string.IsNullOrWhiteSpace(f.Sehir) ? "—" : f.Sehir)</td>
+                        <td class="sag num"><b>@f.Talep.ToString("N0", tr)</b></td>
+                        <td class="sag num">@(f.Adet > 0 ? f.Adet.ToString("N0", tr) : "—")</td>
+                        <td class="sag num kucuk sessiz">@f.Son.ToLocalTime().ToString("dd.MM.yyyy", tr)</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+} @* ToplamTalep > 0 *@

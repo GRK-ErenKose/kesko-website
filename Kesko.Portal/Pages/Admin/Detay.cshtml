@@ -1,0 +1,321 @@
+@page "/admin/{kok:regex(^(siparis|teklif)$)}/{id:int}"
+@model Kesko.Portal.Pages.Admin.DetayModel
+@{
+    var t = Model.T;
+    var kok = Model.Kok;
+    var liste = kok == "siparis" ? "/admin/siparisler" : "/admin/teklifler";
+    var listeAd = kok == "siparis" ? "Sipariş talepleri" : "Teklif talepleri";
+    var tr = System.Globalization.CultureInfo.GetCultureInfo("tr-TR");
+
+    string Gorunum(string? d) => string.IsNullOrWhiteSpace(d) ? "—" : d;
+}
+
+<div class="detay-bas">
+    <div>
+        <a class="geri" href="@liste">@Ikon.Ciz("sol", 14) @listeAd</a>
+        <h2>@t.Baslik</h2>
+        <div class="ustbilgi">
+            <span class="rozet @t.DurumSinif">@t.DurumEtiket</span>
+            <span class="etiket">@t.Referans</span>
+            <span class="kucuk sessiz">
+                @t.OlusturmaUtc.ToLocalTime().ToString("d MMMM yyyy, HH:mm", tr) tarihinde geldi
+            </span>
+            @if (t.GuncellemeUtc is not null)
+            {
+                <span class="kucuk sessiz">
+                    · @t.GuncellemeUtc.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm", tr) güncellendi
+                </span>
+            }
+        </div>
+    </div>
+
+    <div class="eylem y-sag satir">
+        @if (!string.IsNullOrWhiteSpace(t.Eposta))
+        {
+            <button class="dug dug-g" type="button" data-kopyala="@t.Eposta">
+                @Ikon.Ciz("kopya", 15) E-postayı kopyala
+            </button>
+        }
+        <div class="acilir">
+            <button class="dug dug-g" type="button" data-acilir aria-expanded="false" aria-haspopup="true">
+                Diğer işlemler @Ikon.Ciz("asagi", 14)
+            </button>
+            <div class="acilir-govde">
+                <div class="baslik">Durum</div>
+                @foreach (var d in Enum.GetValues<TalepDurum>())
+                {
+                    <form method="post" action="/admin/@kok/@t.Id?handler=Durum">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="durum" value="@d">
+                        <button type="submit">
+                            @(t.Durum == d ? Ikon.Ciz("ok", 15) : Ikon.Ciz("sag", 15))
+                            @(new Talep { Durum = d }.DurumEtiket)
+                        </button>
+                    </form>
+                }
+                <div class="ayir"></div>
+                <form method="post" action="/admin/@kok/@t.Id?handler=Sil"
+                      data-onay="@t.Referans kalıcı olarak silinecek. Bu işlem geri alınamaz. Devam edilsin mi?">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" style="color:var(--err)">@Ikon.Ciz("cop", 15) Talebi sil</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* ---------- durum serisi ---------- *@
+<div class="kart" style="margin-bottom:16px">
+    <div class="kart-ic satir" style="gap:14px">
+        <span class="mono">Durumu güncelle</span>
+        <div class="durum-sec">
+            @foreach (var d in Enum.GetValues<TalepDurum>())
+            {
+                <form method="post" action="/admin/@kok/@t.Id?handler=Durum" style="display:contents">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="durum" value="@d">
+                    <button type="submit" class="@(t.Durum == d ? "simdi" : "")">
+                        @(new Talep { Durum = d }.DurumEtiket)
+                    </button>
+                </form>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="izgara g-32">
+
+    @* ---------- sol kolon: ozet ---------- *@
+    <div>
+        <div class="kart">
+            <div class="kart-bas"><h3>Talep bilgileri</h3></div>
+            <div class="kart-ic">
+                <ul class="ozet">
+                    <li><span class="k">Firma</span><span class="v @(string.IsNullOrWhiteSpace(t.Firma) ? "bos-deger" : "")">@Gorunum(t.Firma)</span></li>
+                    <li><span class="k">Yetkili kişi</span><span class="v @(string.IsNullOrWhiteSpace(t.Yetkili) ? "bos-deger" : "")">@Gorunum(t.Yetkili)</span></li>
+                    <li>
+                        <span class="k">E-posta</span>
+                        <span class="v @(string.IsNullOrWhiteSpace(t.Eposta) ? "bos-deger" : "")">
+                            @if (!string.IsNullOrWhiteSpace(t.Eposta))
+                            {
+                                <a href="mailto:@t.Eposta">@t.Eposta</a>
+                            }
+                            else
+                            {
+                                @:—
+                            }
+                        </span>
+                    </li>
+                    <li>
+                        <span class="k">Telefon</span>
+                        <span class="v @(string.IsNullOrWhiteSpace(t.Telefon) ? "bos-deger" : "")">
+                            @if (!string.IsNullOrWhiteSpace(t.Telefon))
+                            {
+                                <a href="tel:@t.TelefonHref">@t.Telefon</a>
+                            }
+                            else
+                            {
+                                @:—
+                            }
+                        </span>
+                    </li>
+                    <li><span class="k">Şehir</span><span class="v @(string.IsNullOrWhiteSpace(t.Sehir) ? "bos-deger" : "")">@Gorunum(t.Sehir)</span></li>
+
+                    @if (t.Tur == TalepTur.Siparis)
+                    {
+                        <li><span class="k">Ürün</span><span class="v">@Gorunum(t.Urun)</span></li>
+                        <li><span class="k">Gramaj</span><span class="v">@Gorunum(t.Gramaj)</span></li>
+                        <li>
+                            <span class="k">Adet</span>
+                            <span class="v num">
+                                <b>@t.Adet?.ToString("N0", tr)</b>
+                                @if (t.KargoBedava)
+                                {
+                                    <span class="etiket sari">kargo bedava</span>
+                                }
+                            </span>
+                        </li>
+                        <li><span class="k">Teslimat bölgesi</span><span class="v">@t.BolgeEtiket</span></li>
+                    }
+                    else
+                    {
+                        <li><span class="k">İlgilenilen hat</span><span class="v">@Gorunum(t.Hat)</span></li>
+                        <li><span class="k">Gramaj</span><span class="v">@Gorunum(t.Gramaj)</span></li>
+                    }
+                </ul>
+
+                @if (!string.IsNullOrWhiteSpace(t.Mesaj))
+                {
+                    <h4 class="mono mt-24" style="margin-bottom:8px">Formdaki mesaj</h4>
+                    <div class="mesaj-kutu">@t.Mesaj</div>
+                }
+            </div>
+        </div>
+
+        @* ---------- teknik iz ---------- *@
+        <div class="kart mt-16">
+            <div class="kart-bas">
+                <div>
+                    <h3>Teknik iz</h3>
+                    <p class="ipucu">Spam incelemesi ve kaynak takibi için.</p>
+                </div>
+            </div>
+            <div class="kart-ic">
+                <ul class="ozet">
+                    <li><span class="k">IP adresi</span><span class="v num">@Gorunum(t.Ip)</span></li>
+                    <li><span class="k">Geldiği sayfa</span><span class="v kucuk">@Gorunum(t.Referrer)</span></li>
+                    <li><span class="k">Tarayıcı</span><span class="v kucuk">@Gorunum(t.UserAgent)</span></li>
+                    <li>
+                        <span class="k">Bildirim e-postası</span>
+                        <span class="v">
+                            @if (t.BildirimGonderildi)
+                            {
+                                <span class="rozet s-kazanildi">Gönderildi</span>
+                            }
+                            else if (t.BildirimHata is not null)
+                            {
+                                <span class="rozet s-spam">Gönderilemedi</span>
+                                <div class="kucuk sessiz mt-8">@t.BildirimHata</div>
+                            }
+                            else
+                            {
+                                <span class="rozet yalin">Bildirim kapalıydı</span>
+                            }
+                        </span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        @if (Model.Gecmis.Count > 0)
+        {
+            <div class="kart mt-16">
+                <div class="kart-bas">
+                    <div>
+                        <h3>Aynı firmadan diğer talepler</h3>
+                        <p class="ipucu">@t.Firma adına kayıtlı @Model.Gecmis.Count talep daha var.</p>
+                    </div>
+                </div>
+                <ul class="akis">
+                    @foreach (var g in Model.Gecmis)
+                    {
+                        var gk = g.Tur == TalepTur.Siparis ? "siparis" : "teklif";
+                        <li>
+                            <span class="av @(g.Tur == TalepTur.Teklif ? "t" : "")" aria-hidden="true">
+                                @(g.Tur == TalepTur.Siparis ? "S" : "T")
+                            </span>
+                            <span class="gov">
+                                <b><a href="/admin/@gk/@g.Id">@g.Referans</a></b>
+                                <span>
+                                    @(g.Tur == TalepTur.Siparis
+                                        ? $"{g.Urun} · {g.Adet?.ToString("N0", tr)} adet"
+                                        : g.Hat)
+                                </span>
+                            </span>
+                            <span class="sag">
+                                <span class="rozet @g.DurumSinif">@g.DurumEtiket</span>
+                                <time>@g.OlusturmaUtc.ToLocalTime().ToString("dd.MM.yyyy", tr)</time>
+                            </span>
+                        </li>
+                    }
+                </ul>
+            </div>
+        }
+    </div>
+
+    @* ---------- sag kolon: yanit ve notlar ---------- *@
+    <div>
+        <div class="kart">
+            <div class="kart-bas">
+                <div>
+                    <h3>E-posta ile yanıtla</h3>
+                    <p class="ipucu">Panelde kayıtlı SMTP hesabından gönderilir, kopyası bildirim adreslerine düşer.</p>
+                </div>
+            </div>
+            <div class="kart-ic">
+                @if (string.IsNullOrWhiteSpace(t.Eposta))
+                {
+                    <div class="uyari u-dikkat">
+                        @Ikon.Ciz("bilgi", 18)
+                        <div>Bu talepte e-posta adresi yok. Telefonla dönüş yapmanız gerekiyor.</div>
+                    </div>
+                }
+                else if (!Model.SmtpKurulu)
+                {
+                    <div class="uyari u-dikkat">
+                        @Ikon.Ciz("mail", 18)
+                        <div>
+                            SMTP ayarları tanımlı değil.
+                            <a href="/admin/ayarlar">Ayarları tamamlayın</a>.
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <form method="post" action="/admin/@kok/@t.Id?handler=Yanit">
+                        @Html.AntiForgeryToken()
+                        <label class="alan">
+                            <span>Kime</span>
+                            <input type="text" value="@t.Eposta" disabled>
+                        </label>
+                        <label class="alan mt-12">
+                            <span>Konu</span>
+                            <input type="text" name="konu" required maxlength="200"
+                                   value="Kesko — talebiniz hakkında (@t.Referans)">
+                        </label>
+                        <label class="alan mt-12">
+                            <span>Mesaj</span>
+                            <textarea name="govde" required rows="9" placeholder="Merhaba @(t.Yetkili ?? ""),"></textarea>
+                        </label>
+                        <button class="dug dug-n mt-12" type="submit" data-bekle="Gönderiliyor…"
+                                style="width:100%">
+                            @Ikon.Ciz("gonder", 15) Gönder
+                        </button>
+                    </form>
+                }
+            </div>
+        </div>
+
+        <div class="kart mt-16">
+            <div class="kart-bas">
+                <h3>Notlar ve hareketler</h3>
+                <span class="rozet yalin sag">@t.Notlar.Count</span>
+            </div>
+            <div class="kart-ic">
+                <form method="post" action="/admin/@kok/@t.Id?handler=Not">
+                    @Html.AntiForgeryToken()
+                    <label class="alan">
+                        <span>Yeni not</span>
+                        <textarea name="metin" rows="3" required
+                                  placeholder="Görüşme özeti, verilen fiyat, takip tarihi…"></textarea>
+                    </label>
+                    <button class="dug dug-g dug-k mt-8" type="submit">@Ikon.Ciz("not", 14) Not ekle</button>
+                </form>
+
+                <hr class="ayirici">
+
+                @if (t.Notlar.Count == 0)
+                {
+                    <p class="kucuk sessiz m0">Henüz not eklenmemiş.</p>
+                }
+                else
+                {
+                    <ul class="zaman">
+                        @foreach (var n in t.Notlar)
+                        {
+                            var mail = n.Metin.StartsWith("E-posta gönderildi");
+                            <li class="@(mail ? "sari" : "")">
+                                <div class="ne">@(mail ? "E-posta gönderildi" : "Not")</div>
+                                <div class="kim">
+                                    @n.Yazan ·
+                                    @n.OlusturmaUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm", tr)
+                                </div>
+                                <p class="met">@n.Metin</p>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+    </div>
+</div>

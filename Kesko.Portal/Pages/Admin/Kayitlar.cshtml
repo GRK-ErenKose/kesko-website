@@ -1,0 +1,110 @@
+@page "/admin/kayitlar"
+@model Kesko.Portal.Pages.Admin.KayitlarModel
+@{
+    var tr = System.Globalization.CultureInfo.GetCultureInfo("tr-TR");
+    var sonuc = Model.Sonuc;
+
+    static string Rozet(KayitTur t) => t switch
+    {
+        KayitTur.Giris => "s-kazanildi",
+        KayitTur.BasarisizGiris => "s-spam",
+        KayitTur.Cikis => "s-kaybedildi",
+        KayitTur.DurumDegisti => "s-teklif",
+        KayitTur.NotEklendi => "s-yeni",
+        KayitTur.AyarDegisti => "s-inceleme",
+        KayitTur.TestMaili => "s-yeni",
+        KayitTur.Disaaktarim => "s-kaybedildi",
+        _ => "s-spam"
+    };
+}
+
+<div class="sayfa-bas">
+    <div>
+        <h2>İşlem kayıtları</h2>
+        <p>
+            Panelde yapılan her hareket burada tutulur: girişler, başarısız giriş
+            denemeleri, durum değişiklikleri, ayar güncellemeleri ve dışa aktarımlar.
+        </p>
+    </div>
+</div>
+
+<div class="kart">
+    <div class="sekme">
+        <a class="@(Model.Tur is null ? "aktif" : "")" href="@Model.Baglanti(null)">
+            Tümü <span class="n">@Model.TumuSayisi.ToString("N0", tr)</span>
+        </a>
+        @foreach (var t in Enum.GetValues<KayitTur>())
+        {
+            var sayi = Model.TurSayilari.TryGetValue(t, out var s) ? s : 0;
+            if (sayi == 0 && Model.Tur != t) { continue; }
+            <a class="@(Model.Tur == t ? "aktif" : "")" href="@Model.Baglanti(t)">
+                @(new Kayit { Tur = t }.TurEtiket) <span class="n">@sayi.ToString("N0", tr)</span>
+            </a>
+        }
+    </div>
+
+    <div style="height:14px"></div>
+
+    @if (sonuc.Toplam == 0)
+    {
+        <div class="bos">
+            @Ikon.Ciz("kayit", 52)
+            <h3>Kayıt yok</h3>
+            <p>Bu türde henüz bir hareket kaydedilmemiş.</p>
+        </div>
+    }
+    else
+    {
+        <div class="tablo-sar">
+            <table class="tbl">
+                <thead>
+                <tr>
+                    <th class="daralt">Tür</th>
+                    <th>Açıklama</th>
+                    <th class="daralt">Kullanıcı</th>
+                    <th class="daralt">IP</th>
+                    <th class="daralt sag">Zaman</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var k in sonuc.Satirlar)
+                {
+                    <tr>
+                        <td class="daralt"><span class="rozet @Rozet(k.Tur)">@k.TurEtiket</span></td>
+                        <td>@k.Aciklama</td>
+                        <td class="daralt kucuk sessiz">@k.Kullanici</td>
+                        <td class="daralt kucuk sessiz num">@(k.Ip ?? "—")</td>
+                        <td class="daralt sag kucuk sessiz num">
+                            <time datetime="@k.OlusturmaUtc.ToString("o")">
+                                @k.OlusturmaUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss", tr)
+                            </time>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="sayfalama">
+            <span class="bilgi">
+                @sonuc.Ilk.ToString("N0", tr)–@sonuc.Son.ToString("N0", tr) /
+                <b>@sonuc.Toplam.ToString("N0", tr)</b> kayıt
+            </span>
+            @if (sonuc.SayfaSayisi > 1)
+            {
+                <nav class="sayfalar" aria-label="Sayfalama">
+                    @if (sonuc.Sayfa > 1)
+                    {
+                        <a href="@Model.Baglanti(Model.Tur, sonuc.Sayfa - 1)" aria-label="Önceki sayfa">@Ikon.Ciz("sol", 14)</a>
+                    }
+                    <span class="simdi" aria-current="page">@sonuc.Sayfa</span>
+                    <span class="bos">/ @sonuc.SayfaSayisi</span>
+                    @if (sonuc.Sayfa < sonuc.SayfaSayisi)
+                    {
+                        <a href="@Model.Baglanti(Model.Tur, sonuc.Sayfa + 1)" aria-label="Sonraki sayfa">@Ikon.Ciz("sag", 14)</a>
+                    }
+                </nav>
+            }
+        </div>
+    }
+</div>

@@ -1,0 +1,179 @@
+@*
+    Panel kabugu: kenar cubugu, ust cubuk, icerik alani.
+    Sayfalar ViewData["Baslik"] ve ViewData["Yol"] doldurur.
+*@
+@using Microsoft.EntityFrameworkCore
+@inject AppDbContext Db
+@inject AdminAuthService Auth
+@{
+    var yol = ViewContext.RouteData.Values["page"]?.ToString() ?? "";
+    bool Etkin(string ad) => yol.Contains(ad, StringComparison.OrdinalIgnoreCase);
+
+    // Kenar cubugundaki "bekleyen" sayaclari. Tek sorgu, onbelleksiz:
+    // panel tek kullanicili ve veri hacmi kucuk.
+    var bekleyen = await Db.Talepler
+        .Where(t => t.Durum == TalepDurum.Yeni)
+        .GroupBy(t => t.Tur)
+        .Select(g => new { Tur = g.Key, Sayi = g.Count() })
+        .ToListAsync();
+    var bekSiparis = bekleyen.FirstOrDefault(x => x.Tur == TalepTur.Siparis)?.Sayi ?? 0;
+    var bekTeklif = bekleyen.FirstOrDefault(x => x.Tur == TalepTur.Teklif)?.Sayi ?? 0;
+
+    var ad = Auth.GorunenAd;
+    var basHarf = string.Concat(ad.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+        .Take(2).Select(p => char.ToUpperInvariant(p[0])));
+}
+<!DOCTYPE html>
+<html lang="tr" data-tema="acik">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="robots" content="noindex,nofollow">
+    <title>@(ViewData["Baslik"] ?? "Panel") — Kesko Yönetim</title>
+    <link rel="icon" href="/assets/img/kesko-logo-lacivert.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="~/admin/css/admin.css" asp-append-version="true">
+    <script>
+        /* Tema secimini ilk boyamadan once uygula: aksi halde koyu temada
+           bir kare boyunca beyaz ekran gorunur. */
+        try {
+            var t = localStorage.getItem('kesko.tema');
+            if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'koyu' : 'acik';
+            document.documentElement.dataset.tema = t;
+        } catch (e) { }
+    </script>
+</head>
+<body>
+<div class="kabuk">
+
+    <aside class="yan">
+        <div class="yan-bas">
+            <a class="mark" href="/admin/gosterge" aria-label="Kesko panel">
+                <img src="/assets/img/kesko-logo-sari.png" alt="Kesko">
+                <b>Panel</b>
+            </a>
+            <div class="alt">Form &amp; talep yönetimi</div>
+        </div>
+
+        <nav class="yan-nav" aria-label="Panel menüsü">
+            <div class="nav-grup">
+                <span>Genel</span>
+                <a href="/admin/gosterge" class="@(Etkin("Gosterge") ? "aktif" : "")">
+                    @Ikon.Ciz("gosterge") Gösterge paneli
+                </a>
+                <a href="/admin/raporlar" class="@(Etkin("Raporlar") ? "aktif" : "")">
+                    @Ikon.Ciz("rapor") Raporlar
+                </a>
+            </div>
+
+            <div class="nav-grup">
+                <span>Formdan gelenler</span>
+                <a href="/admin/siparisler" class="@(Etkin("Siparis") ? "aktif" : "")">
+                    @Ikon.Ciz("siparis") Sipariş talepleri
+                    @if (bekSiparis > 0)
+                    {
+                        <span class="sayac">@bekSiparis</span>
+                    }
+                </a>
+                <a href="/admin/teklifler" class="@(Etkin("Teklif") ? "aktif" : "")">
+                    @Ikon.Ciz("teklif") Teklif talepleri
+                    @if (bekTeklif > 0)
+                    {
+                        <span class="sayac">@bekTeklif</span>
+                    }
+                </a>
+            </div>
+
+            <div class="nav-grup">
+                <span>Sistem</span>
+                <a href="/admin/ayarlar" class="@(Etkin("Ayarlar") ? "aktif" : "")">
+                    @Ikon.Ciz("ayar") SMTP &amp; site ayarları
+                </a>
+                <a href="/admin/kayitlar" class="@(Etkin("Kayitlar") ? "aktif" : "")">
+                    @Ikon.Ciz("kayit") İşlem kayıtları
+                </a>
+            </div>
+
+            <div class="nav-grup">
+                <span>Site</span>
+                <a href="/" target="_blank" rel="noopener">
+                    @Ikon.Ciz("dis") kesko.com.tr
+                </a>
+            </div>
+        </nav>
+
+        <div class="yan-dip">
+            <div class="kisi">
+                <span class="av" aria-hidden="true">@basHarf</span>
+                <span>
+                    <b>@ad</b>
+                    <span>@Auth.KullaniciAdi</span>
+                </span>
+                <form method="post" action="/admin/cikis" class="y-sag">
+                    @Html.AntiForgeryToken()
+                    <button class="cikis" type="submit" aria-label="Çıkış yap" title="Çıkış yap">
+                        @Ikon.Ciz("cikis", 17)
+                    </button>
+                </form>
+            </div>
+        </div>
+    </aside>
+
+    <div class="perde" id="perde" aria-hidden="true"></div>
+
+    <div class="ana">
+        <header class="ust">
+            <button class="simge-dug menu-dug" id="menu-dug" aria-label="Menüyü aç" aria-expanded="false">
+                @Ikon.Ciz("menu", 20)
+            </button>
+
+            <div>
+                @if (ViewData["Yol"] is string y && y.Length > 0)
+                {
+                    <div class="yol">@y</div>
+                }
+                <h1>@(ViewData["Baslik"] ?? "Panel")</h1>
+            </div>
+
+            <div class="sag">
+                <form class="ust-ara" method="get" action="/admin/siparisler" role="search">
+                    @Ikon.Ciz("ara")
+                    <input id="ust-arama" type="search" name="q" placeholder="Firma, e-posta, referans…"
+                           aria-label="Taleplerde ara" autocomplete="off">
+                    <kbd>/</kbd>
+                </form>
+
+                @await RenderSectionAsync("UstEylem", false)
+
+                <button class="simge-dug" id="tema-dug" aria-label="Temayı değiştir" title="Tema">
+                    <span class="t-ay">@Ikon.Ciz("ay", 18)</span>
+                    <span class="t-gunes">@Ikon.Ciz("gunes", 18)</span>
+                </button>
+            </div>
+        </header>
+
+        <main class="icerik">
+            @RenderBody()
+        </main>
+    </div>
+</div>
+
+<div class="bildirim-yuva" id="bildirim-yuva" aria-live="polite"></div>
+
+@{
+    // Sunucu tarafi tek seferlik mesajlar; admin.js bunlari bildirime cevirir.
+    var mOk = TempData["Ok"] as string;
+    var mHata = TempData["Hata"] as string;
+    var mBilgi = TempData["Bilgi"] as string;
+}
+@if (mOk is not null || mHata is not null || mBilgi is not null)
+{
+    <span id="sunucu-mesaj" hidden data-ok="@mOk" data-hata="@mHata" data-bilgi="@mBilgi"></span>
+}
+
+<script src="~/admin/js/admin.js" asp-append-version="true"></script>
+@await RenderSectionAsync("Betik", false)
+</body>
+</html>
